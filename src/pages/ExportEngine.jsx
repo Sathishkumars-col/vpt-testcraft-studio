@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react'
 import {
   Download, FileSpreadsheet, FileText, Settings,
   CheckSquare, Filter, Layers, Clock, GitBranch,
-  Eye, Plus, Minus, RefreshCw, AlertTriangle, Calendar, Zap,
-  Link2, Code, Play
+  Eye, Plus, Minus, RefreshCw, AlertTriangle,
+  Code, Play
 } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import './ExportEngine.css'
@@ -89,11 +89,6 @@ const DIFF_CHANGES = {
   updated: ['TC-001: Updated assertions for new UI', 'SC-003: Added conflict priority step'],
 }
 
-const SCHEDULES = [
-  { id: 1, trigger: 'Every Sprint End', format: 'Jira', active: true, lastRun: '2026-02-14' },
-  { id: 2, trigger: 'Coverage < 70%', format: 'Excel', active: false, lastRun: 'Never' },
-]
-
 const CONTENT_ITEMS = [
   { id: 'scenarios', label: 'Test Scenarios', count: 8 },
   { id: 'testcases', label: 'Test Cases', count: 24 },
@@ -108,16 +103,10 @@ export default function ExportEngine() {
   const [selectedItems, setSelectedItems] = useState(['scenarios', 'testcases', 'traceability'])
   const [showPreview, setShowPreview] = useState(false)
   const [showDiff, setShowDiff] = useState(false)
-  const [showSchedule, setShowSchedule] = useState(false)
-  const [schedules, setSchedules] = useState(SCHEDULES)
-  const [showLiveSync, setShowLiveSync] = useState(false)
-  const [liveSyncEnabled, setLiveSyncEnabled] = useState(false)
-  const [liveSyncTarget, setLiveSyncTarget] = useState('jira')
   const [showScriptExport, setShowScriptExport] = useState(false)
   const [scriptFramework, setScriptFramework] = useState('playwright')
 
   const toggleItem = (item) => setSelectedItems(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item])
-  const toggleScheduleActive = (id) => setSchedules(prev => prev.map(s => s.id === id ? { ...s, active: !s.active } : s))
 
   const fields = PREVIEW_FIELDS[selectedFormat] || PREVIEW_FIELDS.excel
   const missingRequired = fields.filter(f => !f.mapped && f.required)
@@ -428,8 +417,6 @@ export default function ExportEngine() {
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
             <button className="btn btn-lg btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleExportNow}><Download size={18} /> Export Now</button>
             <button className="btn btn-lg btn-secondary" onClick={() => setShowPreview(!showPreview)}><Eye size={18} /> Preview</button>
-            <button className="btn btn-lg btn-secondary" onClick={() => setShowSchedule(!showSchedule)}><Calendar size={18} /> Schedule</button>
-            <button className="btn btn-lg btn-secondary" onClick={() => setShowLiveSync(!showLiveSync)}><Link2 size={18} /> Live Sync</button>
             <button className="btn btn-lg btn-secondary" onClick={() => setShowScriptExport(!showScriptExport)}><Code size={18} /> Script</button>
           </div>
         </section>
@@ -471,31 +458,6 @@ export default function ExportEngine() {
         </section>
       )}
 
-      {/* Scheduled Exports */}
-      {showSchedule && (
-        <section className="card animate-in" style={{ marginTop: '1.5rem' }}>
-          <div className="card-header">
-            <h3 className="card-title"><Calendar size={16} /> Scheduled Exports</h3>
-            <button className="btn btn-sm btn-primary" onClick={() => { setSchedules(prev => [...prev, { id: prev.length + 1, trigger: 'New Schedule', format: selectedFormat.charAt(0).toUpperCase() + selectedFormat.slice(1), active: true, lastRun: 'Never' }]) }}><Plus size={14} /> Add Schedule</button>
-          </div>
-          <div className="schedule-list">
-            {schedules.map(s => (
-              <div key={s.id} className="schedule-item">
-                <div className="schedule-info">
-                  <span className="schedule-trigger"><Zap size={14} /> {s.trigger}</span>
-                  <span className="badge badge-accent">{s.format}</span>
-                  <span className="schedule-last">Last: {s.lastRun}</span>
-                </div>
-                <label className="schedule-toggle">
-                  <input type="checkbox" checked={s.active} onChange={() => toggleScheduleActive(s.id)} />
-                  <span className={`toggle-pill ${s.active ? 'active' : ''}`}>{s.active ? 'Active' : 'Paused'}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Export Diff */}
       <section className="card" style={{ marginTop: '1.5rem' }}>
         <div className="card-header">
@@ -528,52 +490,6 @@ export default function ExportEngine() {
           </table>
         </div>
       </section>
-
-      {/* Live Sync / Webhooks */}
-      {showLiveSync && (
-        <section className="card animate-in" style={{ marginTop: '1.5rem' }}>
-          <div className="card-header">
-            <h3 className="card-title"><Link2 size={16} /> Live Sync / Webhooks</h3>
-            <button className="btn btn-sm btn-secondary" onClick={() => setShowLiveSync(false)}>Close</button>
-          </div>
-          <p className="live-sync-desc">Enable bi-directional sync — when a test case is updated here, it auto-updates the linked ticket in your tool (and vice-versa). <em style={{color:'var(--text-muted)', fontSize:'0.75rem'}}>(Requires AWS backend — configure connection settings below for future activation)</em></p>
-          <div className="live-sync-config">
-            <div className="sync-target-selector">
-              {['jira', 'azure', 'webhook'].map(t => (
-                <button key={t} className={`sync-target-btn ${liveSyncTarget === t ? 'active' : ''}`} onClick={() => setLiveSyncTarget(t)}>
-                  {t === 'jira' ? 'Jira' : t === 'azure' ? 'Azure DevOps' : 'Custom Webhook'}
-                </button>
-              ))}
-            </div>
-            {liveSyncTarget === 'jira' && (
-              <div className="sync-fields">
-                <div className="setting-row"><label>Jira Base URL</label><input type="text" defaultValue="https://jira.charter.com/" readOnly /></div>
-                <div className="setting-row"><label>Project Key</label><input type="text" placeholder="STVA" /></div>
-                <div className="setting-row"><label>Sync Direction</label><select><option>Bi-directional</option><option>Push only (VPT → Jira)</option><option>Pull only (Jira → VPT)</option></select></div>
-              </div>
-            )}
-            {liveSyncTarget === 'azure' && (
-              <div className="sync-fields">
-                <div className="setting-row"><label>Azure DevOps URL</label><input type="text" placeholder="https://dev.azure.com/org/project" /></div>
-                <div className="setting-row"><label>PAT Token</label><input type="password" placeholder="Personal Access Token" /></div>
-              </div>
-            )}
-            {liveSyncTarget === 'webhook' && (
-              <div className="sync-fields">
-                <div className="setting-row"><label>Webhook URL</label><input type="text" placeholder="https://your-server.com/webhook" /></div>
-                <div className="setting-row"><label>Secret Key</label><input type="password" placeholder="Optional signing secret" /></div>
-              </div>
-            )}
-            <div className="sync-toggle-row">
-              <label className="schedule-toggle">
-                <input type="checkbox" checked={liveSyncEnabled} onChange={() => setLiveSyncEnabled(!liveSyncEnabled)} />
-                <span className={`toggle-pill ${liveSyncEnabled ? 'active' : ''}`}>{liveSyncEnabled ? 'Sync Active' : 'Sync Paused'}</span>
-              </label>
-              <button className="btn btn-sm btn-primary" onClick={() => toast.success(`Testing connection to ${liveSyncTarget}... Connection successful!`)}><Zap size={12} /> Test Connection</button>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Automated Script Export */}
       {showScriptExport && (

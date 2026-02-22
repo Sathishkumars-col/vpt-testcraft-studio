@@ -47,30 +47,8 @@
 @media (max-width: 1024px) { .export-layout { grid-template-columns: 1fr; } .export-diff { grid-template-columns: 1fr; } }
 
 
-/* Scheduled Exports */
-.schedule-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.schedule-item { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; background: var(--bg-tertiary); border-radius: var(--radius); }
-.schedule-info { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-.schedule-trigger { display: flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 600; }
-.schedule-trigger svg { color: var(--accent); }
-.schedule-last { font-size: 0.7rem; color: var(--text-muted); }
-.schedule-toggle { display: flex; align-items: center; cursor: pointer; }
-.schedule-toggle input { display: none; }
-.toggle-pill { padding: 0.25rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; background: var(--bg-secondary); color: var(--text-muted); transition: all 0.2s; }
-.toggle-pill.active { background: var(--success-light); color: var(--success); }
-
-
-/* Live Sync */
-.live-sync-desc, .script-export-desc { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; }
-.live-sync-config { display: flex; flex-direction: column; gap: 0.75rem; }
-.sync-target-selector { display: flex; gap: 0.35rem; }
-.sync-target-btn { padding: 0.4rem 0.8rem; border-radius: var(--radius); background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; }
-.sync-target-btn:hover { color: var(--text-primary); }
-.sync-target-btn.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
-.sync-fields { display: flex; flex-direction: column; gap: 0.5rem; }
-.sync-toggle-row { display: flex; align-items: center; gap: 0.75rem; }
-
 /* Script Export */
+.script-export-desc { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; }
 .script-framework-selector { display: flex; gap: 0.35rem; margin-bottom: 0.75rem; }
 .framework-btn { padding: 0.4rem 0.8rem; border-radius: var(--radius); background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; }
 .framework-btn:hover { color: var(--text-primary); }
