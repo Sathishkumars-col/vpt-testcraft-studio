@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Download, FileSpreadsheet, FileText, Settings,
   CheckSquare, Filter, Layers, Clock, GitBranch,
@@ -7,6 +7,31 @@ import {
 } from 'lucide-react'
 import { useToast } from '../components/Toast'
 import './ExportEngine.css'
+
+// ---- Download helper: triggers browser Save dialog → user's Downloads folder ----
+function downloadFile(content, filename, mimeType = 'text/csv') {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// ---- Build CSV content from data rows ----
+function buildCSV(headers, rows) {
+  const escape = (val) => {
+    const str = String(val ?? '')
+    return str.includes(',') || str.includes('"') || str.includes('\n')
+      ? `"${str.replace(/"/g, '""')}"` : str
+  }
+  const lines = [headers.map(escape).join(',')]
+  rows.forEach(row => lines.push(headers.map(h => escape(row[h] ?? '')).join(',')))
+  return lines.join('\n')
+}
 
 const EXPORT_FORMATS = [
   { id: 'excel', name: 'Excel / CSV', icon: FileSpreadsheet, desc: 'Standard spreadsheet with customizable columns' },
@@ -97,13 +122,272 @@ export default function ExportEngine() {
   const fields = PREVIEW_FIELDS[selectedFormat] || PREVIEW_FIELDS.excel
   const missingRequired = fields.filter(f => !f.mapped && f.required)
 
-  const totalExportable = CONTENT_ITEMS.reduce((sum, item) => sum + item.count, 0)
+  const totalExportable = (() => {
+    const docs = JSON.parse(localStorage.getItem('vpt-docs') || '[]')
+    const reqs = docs.filter(d => d.status === 'parsed').flatMap(d => d.aiRequirements || [])
+    return reqs.length > 0 ? reqs.length * selectedItems.length : CONTENT_ITEMS.reduce((sum, item) => sum + item.count, 0)
+  })()
+
+  // ---- Gather real data from localStorage (same source as other pages) ----
+  const gatherExportData = useCallback(() => {
+    const docs = JSON.parse(localStorage.getItem('vpt-docs') || '[]')
+    const parsedDocs = docs.filter(d => d.status === 'parsed')
+    const projectSummary = JSON.parse(localStorage.getItem('vpt-project-summary') || 'null')
+    const allRequirements = parsedDocs.flatMap(d => (d.aiRequirements || []))
+    const rows = []
+
+    if (selectedItems.includes('requirements')) {
+      allRequirements.forEach((r, i) => {
+        rows.push({
+          'ID': r.id || `REQ-${String(i + 1).padStart(3, '0')}`,
+          'Type': 'Requirement',
+          'Title': r.title || '',
+          'Description': r.description || '',
+          'Risk': r.risk || 'medium',
+          'Priority': r.risk === 'high' ? 'P1' : r.risk === 'medium' ? 'P2' : 'P3',
+          'Source Document': r.sourceDoc || '',
+          'Status': 'Extracted',
+          'Category': 'Requirement',
+        })
+      })
+    }
+
+    if (selectedItems.includes('scenarios')) {
+      allRequirements.forEach((r, i) => {
+        rows.push({
+          'ID': `SC-${String(i + 1).padStart(3, '0')}`,
+          'Type': 'Scenario',
+          'Title': `Verify: ${r.title || 'Untitled'}`,
+          'Description': `Test scenario for ${r.title || 'requirement'}: ${r.description || ''}`,
+          'Risk': r.risk || 'medium',
+          'Priority': r.risk === 'high' ? 'P1' : r.risk === 'medium' ? 'P2' : 'P3',
+          'Source Document': r.sourceDoc || '',
+          'Status': 'Generated',
+          'Category': 'Scenario',
+        })
+      })
+    }
+
+    if (selectedItems.includes('testcases')) {
+      allRequirements.forEach((r, i) => {
+        rows.push({
+          'ID': `TC-${String(i + 1).padStart(3, '0')}`,
+          'Type': 'Test Case',
+          'Title': `Validate ${r.title || 'Untitled'}`,
+          'Description': `Given the system is ready, When ${r.title || 'action'} is performed, Then expected behavior is verified`,
+          'Risk': r.risk || 'medium',
+          'Priority': r.risk === 'high' ? 'P1' : r.risk === 'medium' ? 'P2' : 'P3',
+          'Source Document': r.sourceDoc || '',
+          'Status': 'Draft',
+          'Category': 'Test Case',
+        })
+      })
+    }
+
+    if (selectedItems.includes('traceability')) {
+      allRequirements.forEach((r, i) => {
+        rows.push({
+          'ID': `TM-${String(i + 1).padStart(3, '0')}`,
+          'Type': 'Traceability',
+          'Title': `${r.id || `REQ-${i+1}`} → SC-${String(i+1).padStart(3,'0')} → TC-${String(i+1).padStart(3,'0')}`,
+          'Description': `Requirement mapped to scenario and test case`,
+          'Risk': r.risk || 'medium',
+          'Priority': '',
+          'Source Document': r.sourceDoc || '',
+          'Status': 'Mapped',
+          'Category': 'Traceability',
+        })
+      })
+    }
+
+    if (selectedItems.includes('coverage')) {
+      const avgTestability = parsedDocs.length > 0
+        ? Math.round(parsedDocs.reduce((s, d) => s + (d.testability || 0), 0) / parsedDocs.length) : 0
+      rows.push({
+        'ID': 'COV-001',
+        'Type': 'Coverage Report',
+        'Title': `Overall Coverage: ${avgTestability}%`,
+        'Description': `${parsedDocs.length} documents parsed, ${allRequirements.length} requirements extracted, avg testability ${avgTestability}%`,
+        'Risk': avgTestability < 60 ? 'high' : avgTestability < 80 ? 'medium' : 'low',
+        'Priority': '',
+        'Source Document': 'All Documents',
+        'Status': 'Current',
+        'Category': 'Coverage',
+      })
+    }
+
+    // If no real data, add sample rows so the export isn't empty
+    if (rows.length === 0) {
+      rows.push(
+        { 'ID': 'TC-001', 'Type': 'Test Case', 'Title': 'Sample — upload documents in Document Hub for real data', 'Description': '', 'Risk': '', 'Priority': '', 'Source Document': '', 'Status': 'Sample', 'Category': '' },
+      )
+    }
+
+    return { rows, docs: parsedDocs, projectSummary, allRequirements }
+  }, [selectedItems])
+
+  // ---- Format-specific export builders ----
+  const buildExcelCSV = (rows) => {
+    const headers = ['ID', 'Type', 'Title', 'Description', 'Priority', 'Risk', 'Status', 'Category', 'Source Document']
+    return buildCSV(headers, rows)
+  }
+
+  const buildJiraCSV = (rows) => {
+    const jiraRows = rows.map(r => ({
+      'Summary': r['Title'],
+      'Description': r['Description'],
+      'Issue Type': r['Type'] === 'Test Case' ? 'Test' : r['Type'] === 'Scenario' ? 'Story' : 'Task',
+      'Priority': r['Priority'] || 'Medium',
+      'Labels': r['Category'],
+      'Component': '',
+    }))
+    const headers = ['Summary', 'Description', 'Issue Type', 'Priority', 'Labels', 'Component']
+    return buildCSV(headers, jiraRows)
+  }
+
+  const buildAzureCSV = (rows) => {
+    const azureRows = rows.map(r => ({
+      'Title': r['Title'],
+      'Work Item Type': r['Type'] === 'Test Case' ? 'Test Case' : 'User Story',
+      'Description': r['Description'],
+      'Priority': r['Priority'] === 'P1' ? '1' : r['Priority'] === 'P2' ? '2' : '3',
+      'State': r['Status'] === 'Draft' ? 'Design' : 'Ready',
+      'Area Path': '',
+      'Iteration': '',
+    }))
+    const headers = ['Title', 'Work Item Type', 'Description', 'Priority', 'State', 'Area Path', 'Iteration']
+    return buildCSV(headers, azureRows)
+  }
+
+  const buildTestRailCSV = (rows) => {
+    const trRows = rows.map(r => ({
+      'Title': r['Title'],
+      'Section': r['Category'] || 'General',
+      'Steps': r['Description'],
+      'Expected': 'Verify expected behavior',
+      'Priority': r['Priority'] || 'Medium',
+      'Type': r['Type'],
+    }))
+    const headers = ['Title', 'Section', 'Steps', 'Expected', 'Priority', 'Type']
+    return buildCSV(headers, trRows)
+  }
+
+  // ---- Main export handler ----
+  const handleExportNow = () => {
+    const { rows } = gatherExportData()
+    const versionTag = document.querySelector('.template-settings input[type="text"]')?.value || 'v1.0'
+    const timestamp = new Date().toISOString().split('T')[0]
+    let content, filename
+
+    switch (selectedFormat) {
+      case 'jira':
+        content = buildJiraCSV(rows)
+        filename = `VPT_Jira_Import_${versionTag}_${timestamp}.csv`
+        break
+      case 'azure':
+        content = buildAzureCSV(rows)
+        filename = `VPT_AzureDevOps_${versionTag}_${timestamp}.csv`
+        break
+      case 'testrail':
+        content = buildTestRailCSV(rows)
+        filename = `VPT_TestRail_${versionTag}_${timestamp}.csv`
+        break
+      default:
+        content = buildExcelCSV(rows)
+        filename = `VPT_Export_${versionTag}_${timestamp}.csv`
+    }
+
+    downloadFile(content, filename, 'text/csv;charset=utf-8;')
+    toast.success(`Downloaded ${filename} (${rows.length} items)`)
+
+    // Add to export history in localStorage
+    const history = JSON.parse(localStorage.getItem('vpt-export-history') || '[]')
+    history.unshift({
+      id: Date.now(),
+      name: filename,
+      format: selectedFormat.charAt(0).toUpperCase() + selectedFormat.slice(1),
+      items: rows.length,
+      date: new Date().toLocaleString(),
+      user: JSON.parse(localStorage.getItem('vpt-user') || '{}').name || 'User',
+    })
+    localStorage.setItem('vpt-export-history', JSON.stringify(history.slice(0, 20)))
+    setExportHistory(history.slice(0, 20))
+  }
+
+  // ---- Script download handler ----
+  const handleScriptDownload = () => {
+    const { allRequirements } = gatherExportData()
+    let code = ''
+    const ext = scriptFramework === 'playwright' ? 'spec.ts' : scriptFramework === 'cypress' ? 'cy.js' : 'test.js'
+
+    if (allRequirements.length === 0) {
+      // Use sample code if no real data
+      code = document.querySelector('.script-code')?.textContent || '// No test data available'
+    } else {
+      if (scriptFramework === 'playwright') {
+        code = `import { test, expect } from '@playwright/test';\n\n`
+        allRequirements.forEach((r, i) => {
+          code += `test('${(r.title || `Test ${i+1}`).replace(/'/g, "\\'")}', async ({ page }) => {\n`
+          code += `  // ${r.description || 'Verify requirement'}\n`
+          code += `  // TODO: Implement test steps\n`
+          code += `  await page.goto('/');\n`
+          code += `  // Add assertions here\n`
+          code += `});\n\n`
+        })
+      } else if (scriptFramework === 'cypress') {
+        code = `describe('VPT Generated Tests', () => {\n`
+        allRequirements.forEach((r, i) => {
+          code += `  it('${(r.title || `Test ${i+1}`).replace(/'/g, "\\'")}', () => {\n`
+          code += `    // ${r.description || 'Verify requirement'}\n`
+          code += `    cy.visit('/');\n`
+          code += `    // TODO: Add test steps\n`
+          code += `  });\n\n`
+        })
+        code += `});\n`
+      } else {
+        code = `import { Builder, By } from 'selenium-webdriver';\n\n`
+        code += `describe('VPT Generated Tests', () => {\n`
+        allRequirements.forEach((r, i) => {
+          code += `  it('${(r.title || `Test ${i+1}`).replace(/'/g, "\\'")}', async () => {\n`
+          code += `    // ${r.description || 'Verify requirement'}\n`
+          code += `    const driver = await new Builder().forBrowser('chrome').build();\n`
+          code += `    await driver.get('/');\n`
+          code += `    // TODO: Add test steps\n`
+          code += `    await driver.quit();\n`
+          code += `  });\n\n`
+        })
+        code += `});\n`
+      }
+    }
+
+    const filename = `vpt_tests.${ext}`
+    downloadFile(code, filename, 'text/plain;charset=utf-8;')
+    toast.success(`Downloaded ${filename}`)
+  }
+
+  // ---- Re-download from history ----
+  const handleRedownload = (exp) => {
+    // Re-generate the export with current data
+    const { rows } = gatherExportData()
+    const content = selectedFormat === 'jira' ? buildJiraCSV(rows)
+      : selectedFormat === 'azure' ? buildAzureCSV(rows)
+      : selectedFormat === 'testrail' ? buildTestRailCSV(rows)
+      : buildExcelCSV(rows)
+    downloadFile(content, exp.name, 'text/csv;charset=utf-8;')
+    toast.success(`Re-downloaded ${exp.name}`)
+  }
+
+  // ---- Export history from localStorage ----
+  const [exportHistory, setExportHistory] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('vpt-export-history') || '[]')
+    return saved.length > 0 ? saved : EXPORT_HISTORY
+  })
 
   return (
     <div className="export-engine">
       <section className="grid-3" style={{ marginBottom: '1.5rem' }}>
         <div className="card stat-card"><div className="stat-value animate-count">{totalExportable}</div><div className="stat-label">Exportable Items</div></div>
-        <div className="card stat-card"><div className="stat-value animate-count" style={{ color: 'var(--success)' }}>{EXPORT_HISTORY.length}</div><div className="stat-label">Recent Exports</div></div>
+        <div className="card stat-card"><div className="stat-value animate-count" style={{ color: 'var(--success)' }}>{exportHistory.length}</div><div className="stat-label">Recent Exports</div></div>
         <div className="card stat-card"><div className="stat-value animate-count" style={{ color: 'var(--info)' }}>{EXPORT_FORMATS.length}</div><div className="stat-label">Supported Formats</div></div>
       </section>
 
@@ -142,7 +426,7 @@ export default function ExportEngine() {
             <label className="check-item" style={{ marginTop: '0.5rem' }}><input type="checkbox" defaultChecked /><CheckSquare size={16} className="checked" /><span className="check-label">Include change tracking</span></label>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-lg btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => toast.success(`Exporting ${selectedItems.length} item(s) in ${selectedFormat.toUpperCase()} format...`)}><Download size={18} /> Export Now</button>
+            <button className="btn btn-lg btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleExportNow}><Download size={18} /> Export Now</button>
             <button className="btn btn-lg btn-secondary" onClick={() => setShowPreview(!showPreview)}><Eye size={18} /> Preview</button>
             <button className="btn btn-lg btn-secondary" onClick={() => setShowSchedule(!showSchedule)}><Calendar size={18} /> Schedule</button>
             <button className="btn btn-lg btn-secondary" onClick={() => setShowLiveSync(!showLiveSync)}><Link2 size={18} /> Live Sync</button>
@@ -234,9 +518,12 @@ export default function ExportEngine() {
           <table>
             <thead><tr><th>File Name</th><th>Format</th><th>Items</th><th>Date</th><th>By</th><th>Actions</th></tr></thead>
             <tbody>
-              {EXPORT_HISTORY.map(exp => (
-                <tr key={exp.id}><td>{exp.name}</td><td><span className="badge badge-accent">{exp.format}</span></td><td>{exp.items}</td><td>{exp.date}</td><td>{exp.user}</td><td><button className="btn btn-sm btn-secondary" onClick={() => toast.success(`Re-downloading ${exp.name}...`)}><Download size={14} /> Re-download</button></td></tr>
+              {exportHistory.map(exp => (
+                <tr key={exp.id}><td>{exp.name}</td><td><span className="badge badge-accent">{exp.format}</span></td><td>{exp.items}</td><td>{exp.date}</td><td>{exp.user}</td><td><button className="btn btn-sm btn-secondary" onClick={() => handleRedownload(exp)}><Download size={14} /> Re-download</button></td></tr>
               ))}
+              {exportHistory.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>No exports yet — click "Export Now" to create your first export</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -249,7 +536,7 @@ export default function ExportEngine() {
             <h3 className="card-title"><Link2 size={16} /> Live Sync / Webhooks</h3>
             <button className="btn btn-sm btn-secondary" onClick={() => setShowLiveSync(false)}>Close</button>
           </div>
-          <p className="live-sync-desc">Enable bi-directional sync — when a test case is updated here, it auto-updates the linked ticket in your tool (and vice-versa).</p>
+          <p className="live-sync-desc">Enable bi-directional sync — when a test case is updated here, it auto-updates the linked ticket in your tool (and vice-versa). <em style={{color:'var(--text-muted)', fontSize:'0.75rem'}}>(Requires AWS backend — configure connection settings below for future activation)</em></p>
           <div className="live-sync-config">
             <div className="sync-target-selector">
               {['jira', 'azure', 'webhook'].map(t => (
@@ -315,7 +602,7 @@ export default function ExportEngine() {
               : `describe('CDVR Recording', () => {\n  it('should record from program guide', () => {\n    cy.visit('/guide');\n    cy.get('[data-program-id=future-1]').click();\n    cy.get('#record-btn').click();\n    cy.get('.recording-icon').should('be.visible');\n    cy.get('#dvr-list').should('contain', 'Future event');\n  });\n});`
             }</pre>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-              <button className="btn btn-sm btn-primary" onClick={() => toast.success(`Downloading all ${scriptFramework} scripts...`)}><Download size={12} /> Download All Scripts</button>
+              <button className="btn btn-sm btn-primary" onClick={handleScriptDownload}><Download size={12} /> Download All Scripts</button>
               <button className="btn btn-sm btn-secondary" onClick={() => { const codeEl = document.querySelector('.script-code'); if (codeEl) { navigator.clipboard.writeText(codeEl.textContent).then(() => toast.success('Copied to clipboard!')).catch(() => toast.error('Copy failed — please select and copy manually')) } }}><Play size={12} /> Copy to Clipboard</button>
             </div>
           </div>
