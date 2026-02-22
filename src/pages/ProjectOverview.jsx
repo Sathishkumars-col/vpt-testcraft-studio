@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   FolderOpen, FileText, CheckCircle, AlertTriangle, Sparkles,
-  BarChart3, Target, Shield, Zap, RefreshCw, Loader
+  BarChart3, Target, Shield, Zap, Loader
 } from 'lucide-react'
 import { chatWithAI } from '../utils/ai'
 import { useToast } from '../components/Toast'

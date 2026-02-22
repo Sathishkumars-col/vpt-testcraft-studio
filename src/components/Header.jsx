@@ -9,9 +9,10 @@ const SHORTCUTS = [
   { keys: '⌘2', desc: 'Project Overview' },
   { keys: '⌘3', desc: 'Review Dashboard' },
   { keys: '⌘4', desc: 'Scenario Generator' },
-  { keys: '⌘5', desc: 'Export Engine' },
-  { keys: '⌘6', desc: 'Transformation Studio' },
-  { keys: '⌘7', desc: 'Analytics & Insights' },
+  { keys: '⌘5', desc: 'Transformation Studio' },
+  { keys: '⌘6', desc: 'Export Engine' },
+  { keys: '⌘7', desc: 'Test Analysis' },
+  { keys: '⌘8', desc: 'Analytics & Insights' },
 ]
 
 const NOTIFICATIONS = [

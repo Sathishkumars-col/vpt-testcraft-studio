@@ -111,7 +111,7 @@ Analyze and respond in this exact JSON format:
 }`
 
       const result = await chatWithAI(prompt, 'test-gap-analysis')
-      const text = result.response || result.message || ''
+      const text = result.reply || result.response || ''
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         setGapResult(JSON.parse(jsonMatch[0]))
@@ -176,7 +176,7 @@ Respond in this exact JSON format:
 }`
 
       const result = await chatWithAI(prompt, 'duplicate-detection')
-      const text = result.response || result.message || ''
+      const text = result.reply || result.response || ''
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         setDupResult(JSON.parse(jsonMatch[0]))

@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Zap, FileText, ClipboardCheck, Wrench, BarChart3, Download, ArrowRight, Sparkles, Target, AlertTriangle } from 'lucide-react'
+import { Search, Zap, FileText, ClipboardCheck, Wrench, BarChart3, Download, ArrowRight, Sparkles, Target, AlertTriangle, FolderOpen } from 'lucide-react'
 import './CommandPalette.css'
 
 const COMMANDS = [
   { id: 'nav-doc', type: 'navigate', icon: FileText, label: 'Go to Document Hub', page: 'documents' },
+  { id: 'nav-overview', type: 'navigate', icon: FolderOpen, label: 'Go to Project Overview', page: 'overview' },
   { id: 'nav-review', type: 'navigate', icon: ClipboardCheck, label: 'Go to Review Dashboard', page: 'review' },
   { id: 'nav-scenario', type: 'navigate', icon: Zap, label: 'Go to Scenario Generator', page: 'scenarios' },
-  { id: 'nav-export', type: 'navigate', icon: Download, label: 'Go to Export Engine', page: 'export' },
   { id: 'nav-transform', type: 'navigate', icon: Wrench, label: 'Go to Transformation Studio', page: 'transform' },
+  { id: 'nav-export', type: 'navigate', icon: Download, label: 'Go to Export Engine', page: 'export' },
+  { id: 'nav-testanalysis', type: 'navigate', icon: Search, label: 'Go to Test Analysis', page: 'testanalysis' },
   { id: 'nav-analytics', type: 'navigate', icon: BarChart3, label: 'Go to Analytics & Insights', page: 'analytics' },
   { id: 'ai-neg', type: 'action', icon: Sparkles, label: 'Generate negative scenarios for REQ-003' },
   { id: 'ai-edge', type: 'action', icon: Sparkles, label: 'Suggest edge cases for CDVR Recording' },

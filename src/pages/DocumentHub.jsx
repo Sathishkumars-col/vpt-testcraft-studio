@@ -196,16 +196,6 @@ export default function DocumentHub() {
     return () => clearTimeout(timer)
   }, [docs])
 
-  const processFiles = (files) => {
-    Array.from(files).forEach(file => {
-      const id = nextId.current
-      addDoc({ id, name: file.name, type: getFileType(file.name), status: 'parsing', stories: 0, specs: 0, uploaded: todayStr(), size: formatFileSize(file.size), ambiguity: 0, completeness: 0, testability: 0, parseProgress: 5, tags: [] })
-      pendingFiles.current[id] = file
-      parseWithAI(id, file)
-    })
-    document.getElementById('docs-table')?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   const handleFileSelect = (e) => { if (e.target.files?.length) processFilesWithChecks(e.target.files); e.target.value = '' }
   const handleDrag = (e) => { e.preventDefault(); e.stopPropagation(); if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true); else if (e.type === 'dragleave') setDragActive(false) }
   const handleDrop = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); if (e.dataTransfer.files?.length) processFilesWithChecks(e.dataTransfer.files) }
