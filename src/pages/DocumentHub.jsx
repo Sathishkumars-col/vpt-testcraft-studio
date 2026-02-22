@@ -81,14 +81,24 @@ export default function DocumentHub() {
     return Math.max(0, ...ids, SAMPLE_DOCS.length) + 1
   })())
 
-  // Persist docs to localStorage
+  // Persist docs to localStorage (skip if empty and localStorage already has data)
+  const isInitialMount = useRef(true)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
     localStorage.setItem('vpt-docs', JSON.stringify(docs))
     localStorage.setItem('vpt-docs-initialized', 'true')
   }, [docs])
 
   // Persist trash to localStorage
+  const isTrashInitialMount = useRef(true)
   useEffect(() => {
+    if (isTrashInitialMount.current) {
+      isTrashInitialMount.current = false
+      return
+    }
     localStorage.setItem('vpt-docs-trash', JSON.stringify(trash))
   }, [trash])
 

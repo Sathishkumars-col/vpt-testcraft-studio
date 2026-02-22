@@ -10,13 +10,25 @@ import './ProjectOverview.css'
 export default function ProjectOverview() {
   const toast = useToast()
   const [docs, setDocs] = useState([])
-  const [aiSummary, setAiSummary] = useState(null)
+  const [aiSummary, setAiSummary] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vpt-project-summary')
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
+  })
   const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('vpt-docs') || '[]')
     setDocs(saved)
   }, [])
+
+  // Persist AI summary to localStorage
+  useEffect(() => {
+    if (aiSummary) {
+      localStorage.setItem('vpt-project-summary', JSON.stringify(aiSummary))
+    }
+  }, [aiSummary])
 
   const parsed = docs.filter(d => d.status === 'parsed')
   const totalStories = docs.reduce((s, d) => s + (d.stories || 0), 0)
