@@ -1,0 +1,43 @@
+.welcome-overlay {
+  position: fixed; inset: 0; z-index: 1500;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(3px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 12vh; animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.welcome-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 400px;
+  box-shadow: var(--shadow-lg); position: relative;
+  animation: slideDown 0.2s ease;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+
+.welcome-close {
+  position: absolute; top: 0.75rem; right: 0.75rem;
+  background: none; color: var(--text-muted); cursor: pointer;
+}
+.welcome-close:hover { color: var(--text-primary); }
+
+.welcome-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.welcome-icon { color: var(--accent); }
+.welcome-header h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+
+.welcome-summary { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+
+.welcome-activity { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.welcome-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.6rem; background: var(--bg-tertiary);
+  border-radius: var(--radius); cursor: pointer; transition: background 0.15s;
+  border: none; width: 100%; text-align: left;
+}
+.welcome-item:hover { background: var(--accent-light); }
+.welcome-item-icon { color: var(--accent); flex-shrink: 0; }
+.welcome-item-body { flex: 1; }
+.welcome-item-text { font-size: 0.78rem; color: var(--text-primary); display: block; }
+.welcome-item-time { font-size: 0.65rem; color: var(--text-muted); }
+.welcome-item-arrow { color: var(--text-muted); flex-shrink: 0; }
+
+.welcome-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }

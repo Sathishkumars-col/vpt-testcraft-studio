@@ -1,0 +1,42 @@
+.health-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.ribbon-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  padding: 0.15rem 0;
+}
+.ribbon-item svg { color: var(--text-muted); }
+
+.ribbon-label { font-size: 0.68rem; color: var(--text-muted); }
+.ribbon-value { font-size: 0.72rem; font-weight: 700; color: var(--text-primary); }
+.ribbon-value.coverage-val { color: var(--warning); }
+.ribbon-value.danger-val { color: var(--danger-soft, #f87171); }
+.ribbon-value.warning-val { color: var(--warning); }
+.ribbon-value.accent-val { color: var(--accent); }
+
+.ribbon-minibar {
+  width: 40px;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ribbon-minifill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+.ribbon-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+}
